@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+
+{% block title %}Sentinel - Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Security Admin Dashboard</h1>
+    <p class="page-subtitle">Real-time behavior profiling and insider anomaly detection logs.</p>
+</div>
+
+<!-- Metrics Overview -->
+<div class="dashboard-grid">
+    <div class="glass-card metric-card">
+        <div class="metric-info">
+            <span>Employees Monitored</span>
+            <h3>10</h3>
+            <span style="color: var(--color-cyan);"><i class="fa-solid fa-users"></i> 10 Active Profiles</span>
+        </div>
+        <div class="metric-icon blue">
+            <i class="fa-solid fa-users-gear"></i>
+        </div>
+    </div>
+    
+    <div class="glass-card metric-card">
+        <div class="metric-info">
+            <span>High Risk Threat Alerts</span>
+            <h3 id="high-threat-count">{{ high_threat_count }}</h3>
+            <span style="color: var(--color-high);"><i class="fa-solid fa-triangle-exclamation"></i> Action Required</span>
+        </div>
+        <div class="metric-icon red">
+            <i class="fa-solid fa-radiation"></i>
+        </div>
+    </div>
+    
+    <div class="glass-card metric-card">
+        <div class="metric-info">
+            <span>Medium Risk Warnings</span>
+            <h3 id="medium-threat-count">{{ medium_threat_count }}</h3>
+            <span style="color: var(--color-medium);"><i class="fa-solid fa-eye"></i> Under Investigation</span>
+        </div>
+        <div class="metric-icon purple">
+            <i class="fa-solid fa-magnifying-glass-chart"></i>
+        </div>
+    </div>
+    
+    <div class="glass-card metric-card">
+        <div class="metric-info">
+            <span>Security Coverage</span>
+            <h3>100%</h3>
+            <span style="color: var(--color-low);"><i class="fa-solid fa-shield"></i> Adaptive Profiling Active</span>
+        </div>
+        <div class="metric-icon green">
+            <i class="fa-solid fa-user-shield"></i>
+        </div>
+    </div>
+</div>
+
+<!-- Main Row: Visualizations & Real-Time Simulator -->
+<div class="grid-2col">
+    <!-- Real-Time Simulator & Console -->
+    <div class="glass-card">
+        <div class="card-title">
+            <span><i class="fa-solid fa-terminal" style="color: var(--color-cyan);"></i> Live Employee Activity Stream</span>
+            <div style="display: flex; gap: 0.5rem;">
+                <button id="btn-start-sim" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.75rem;">
+                    <i class="fa-solid fa-play"></i> Start Stream
+                </button>
+                <button id="btn-stop-sim" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.75rem;" disabled>
+                    <i class="fa-solid fa-pause"></i> Pause
+                </button>
+                <button id="btn-inject-threat" class="btn btn-danger" style="padding: 0.4rem 0.8rem; font-size: 0.75rem;">
+                    <i class="fa-solid fa-skull-crossbones"></i> Inject Threat
+                </button>
+            </div>
+        </div>
+        
+        <div class="console-output" id="sim-console">
+            <div class="console-entry">[SYSTEM] Sentinel AI Core online. Standing by for stream activation...</div>
+        </div>
+        
+        <div style="margin-top: 1rem; display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted);">
+            <span>Active Classifier: <strong id="active-classifier-name" style="color: var(--color-cyan);">Random_Forest</strong></span>
+            <span>Logs Interval: <strong>2.5 seconds</strong></span>
+        </div>
+    </div>
+
+    <!-- Threat Level Distribution Chart -->
+    <div class="glass-card">
+        <div class="card-title">
+            <span><i class="fa-solid fa-pie-chart" style="color: var(--color-purple);"></i> Employee Risk Chart</span>
+        </div>
+        <div style="height: 250px; display: flex; align-items: center; justify-content: center;">
+            <canvas id="riskChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Bottom Row: Recent Alerts & Monitored Employee List -->
+<div class="grid-2col" style="grid-template-columns: 1fr 1fr;">
+    <!-- Active Alerts Log -->
+    <div class="glass-card">
+        <div class="card-title">
+            <span><i class="fa-solid fa-bell" style="color: var(--color-high);"></i> Threat Incidents & XAI Explanations</span>
+            <span class="badge badge-high" id="active-alerts-lbl">Live</span>
+        </div>
+        <div class="alert-list" id="dashboard-alerts" style="max-height: 380px; overflow-y: auto; padding-right: 0.5rem;">
+            {% if alerts %}
+                {% for alert in alerts %}
+                <div class="alert-item {% if alert.risk_score < 70 %}medium{% endif %}">
+                    <div style="font-size: 1.25rem; color: {% if alert.risk_score >= 70 %}var(--color-high){% else %}var(--color-medium){% endif %}; margin-top: 2px;">
+                        <i class="fa-solid {% if alert.risk_score >= 70 %}fa-triangle-exclamation{% else %}fa-eye-slash{% endif %}"></i>
+                    </div>
+                    <div class="alert-content">
+                        <div style="display: flex; justify-content: space-between; font-weight: 600;">
+                            <span>{{ alert.employee_id }} (Score: {{ alert.risk_score }})</span>
+                            <span style="font-size: 0.75rem; color: var(--text-muted);">{{ alert.alert_type }}</span>
+                        </div>
+                        <p style="font-size: 0.85rem; margin-top: 0.25rem; color: var(--text-primary);">{{ alert.description }}</p>
+                        <div class="alert-meta">Incident Logged at: {{ alert.timestamp }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div style="text-align: center; padding: 2rem; color: var(--text-muted);" id="no-alerts-msg">
+                    <i class="fa-solid fa-shield-halved" style="font-size: 2.5rem; margin-bottom: 0.75rem; opacity: 0.5;"></i>
+                    <p>No active anomalies detected. System secure.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Monitored Employees list -->
+    <div class="glass-card">
+        <div class="card-title">
+            <span><i class="fa-solid fa-users" style="color: var(--color-cyan);"></i> Monitored Employee Directory</span>
+            <a href="{{ url_for('profiler') }}" class="btn btn-secondary" style="padding: 0.35rem 0.7rem; font-size: 0.75rem;">Configure Profiles</a>
+        </div>
+        <div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Dept</th>
+                        <th>Risk Score</th>
+                        <th>Level</th>
+                    </tr>
+                </thead>
+                <tbody id="employee-list-tbody">
+                    {% for emp in employees %}
+                    <tr>
+                        <td><strong>{{ emp.employee_id }}</strong></td>
+                        <td>{{ emp.name }}</td>
+                        <td>{{ emp.department }}</td>
+                        <td><span style="font-family: var(--font-mono); font-weight: bold;">{{ emp.threat_score }}</span></td>
+                        <td>
+                            {% if emp.risk_level == 'High' %}
+                            <span class="badge badge-high">High</span>
+                            {% elif emp.risk_level == 'Medium' %}
+                            <span class="badge badge-medium">Medium</span>
+                            {% else %}
+                            <span class="badge badge-low">Low</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Include Simulator JS and Chart Config JS -->
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script src="{{ url_for('static', filename='js/simulator.js') }}"></script>
+{% endblock %}

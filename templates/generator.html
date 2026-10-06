@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+
+{% block title %}Sentinel - Data Synthesizer{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Synthetic Data & Augmentation Controls</h1>
+    <p class="page-subtitle">Solving the scarcity of real-world cybersecurity datasets using statistical generation and noise-injected augmentation.</p>
+</div>
+
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    {% for msg in messages %}
+      <div class="glass-card" style="border-left: 4px solid var(--color-purple); padding: 1rem; margin-bottom: 1.5rem; animation: fade-in 0.3s ease;">
+          <p><i class="fa-solid fa-square-poll-horizontal" style="color: var(--color-purple); margin-right: 0.5rem;"></i> {{ msg }}</p>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<div class="grid-2col">
+    <!-- Generation Form -->
+    <div class="glass-card">
+        <div class="card-title">
+            <span><i class="fa-solid fa-gears" style="color: var(--color-cyan);"></i> Synthetic Logs Generator</span>
+        </div>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+            Generate realistic employee logs modeled on standard office operations and specific threat signatures (exfiltration, compromised logins, employee sabotage).
+        </p>
+        
+        <form action="{{ url_for('generate_logs_action') }}" method="POST">
+            <div class="form-group">
+                <label class="form-label" for="num_days">Log History Duration (Days)</label>
+                <input type="number" name="num_days" id="num_days" class="form-control" value="30" min="5" max="90">
+            </div>
+            
+            <div class="form-group">
+                <div class="slider-container">
+                    <label class="form-label">Base Threat Signature Ratio</label>
+                    <span class="slider-value" id="threat-val">5%</span>
+                </div>
+                <input type="range" name="threat_percentage" class="form-control" style="padding:0; accent-color: var(--color-high);" min="1" max="25" value="5" oninput="document.getElementById('threat-val').innerText = this.value + '%'">
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">
+                <i class="fa-solid fa-microchip"></i> Generate Synthetic Logs
+            </button>
+        </form>
+    </div>
+
+    <!-- Hybrid Training Parameters -->
+    <div class="glass-card">
+        <div class="card-title">
+            <span><i class="fa-solid fa-cubes-stacked" style="color: var(--color-purple);"></i> Hybrid ML Trainer Controls</span>
+        </div>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+            Combine your generated synthetic behavior logs with small, real-world public seed logs (like CERT) in customizable ratios to build robust training features.
+        </p>
+        
+        <form action="{{ url_for('train_hybrid_action') }}" method="POST">
+            <div class="form-group">
+                <div class="slider-container">
+                    <label class="form-label">Synthetic Data Share</label>
+                    <span class="slider-value" id="synth-pct-lbl">70%</span>
+                </div>
+                <input type="range" name="synth_pct" id="synth_pct" class="form-control" style="padding:0; accent-color: var(--color-cyan);" min="10" max="90" value="70" oninput="updateMixRatios(this.value)">
+            </div>
+            
+            <div class="form-group">
+                <div class="slider-container">
+                    <label class="form-label">Real-World Seed Share (CERT)</label>
+                    <span class="slider-value" id="seed-pct-lbl">30%</span>
+                </div>
+                <input type="range" id="seed_pct_readonly" class="form-control" style="padding:0; opacity: 0.5; pointer-events: none;" min="10" max="90" value="30">
+            </div>
+
+            <!-- Smart Data Augmentation Toggles -->
+            <div class="form-group" style="margin-top: 1.5rem; display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 8px; border: 1px dashed var(--border-color);">
+                <div>
+                    <label class="form-label" style="margin-bottom: 0.1rem; font-weight: bold; color: var(--text-primary);">Smart Data Augmentation</label>
+                    <span style="font-size: 0.75rem; color: var(--text-muted);">Expand threat samples with Gaussian Noise injection.</span>
+                </div>
+                <input type="checkbox" name="run_aug" value="yes" checked style="width: 20px; height: 20px; accent-color: var(--color-purple);">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="aug_factor">Augmentation Factor (Multiplier)</label>
+                <select name="aug_factor" id="aug_factor" class="form-control form-select">
+                    <option value="2">2x (Duplicate twice with noise)</option>
+                    <option value="3" selected>3x (Recommended: Triples sample count)</option>
+                    <option value="5">5x (High: Quintuple sample size)</option>
+                </select>
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width: 100%; background: linear-gradient(135deg, var(--color-purple) 0%, var(--color-cyan) 100%);">
+                <i class="fa-solid fa-dumbbell"></i> Run Hybrid Training
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Database Statistics -->
+<div class="glass-card" style="margin-top: 2rem;">
+    <div class="card-title">
+        <span><i class="fa-solid fa-chart-simple" style="color: var(--color-cyan);"></i> Active Database Profile Summary</span>
+    </div>
+    
+    <div class="dashboard-grid" style="margin-bottom: 0;">
+        <div style="text-align: center; border-right: 1px solid var(--border-color); padding: 1rem;">
+            <span style="font-size: 0.85rem; color: var(--text-muted);">Total Daily Vectors</span>
+            <h2 style="font-size: 2.25rem; font-weight: bold; margin-top: 0.5rem; color: #fff;">{{ total_records }}</h2>
+        </div>
+        <div style="text-align: center; border-right: 1px solid var(--border-color); padding: 1rem;">
+            <span style="font-size: 0.85rem; color: var(--text-muted);"><i class="fa-solid fa-circle" style="color: var(--color-low); font-size: 0.6rem; margin-right: 4px;"></i> Normal Records</span>
+            <h2 style="font-size: 2.25rem; font-weight: bold; margin-top: 0.5rem; color: var(--color-low);">{{ normal_count }}</h2>
+        </div>
+        <div style="text-align: center; border-right: 1px solid var(--border-color); padding: 1rem;">
+            <span style="font-size: 0.85rem; color: var(--text-muted);"><i class="fa-solid fa-circle" style="color: var(--color-medium); font-size: 0.6rem; margin-right: 4px;"></i> Suspicious Records</span>
+            <h2 style="font-size: 2.25rem; font-weight: bold; margin-top: 0.5rem; color: var(--color-medium);">{{ suspicious_count }}</h2>
+        </div>
+        <div style="text-align: center; padding: 1rem;">
+            <span style="font-size: 0.85rem; color: var(--text-muted);"><i class="fa-solid fa-circle" style="color: var(--color-high); font-size: 0.6rem; margin-right: 4px;"></i> Threat Records</span>
+            <h2 style="font-size: 2.25rem; font-weight: bold; margin-top: 0.5rem; color: var(--color-high);">{{ threat_count }}</h2>
+        </div>
+    </div>
+</div>
+
+<script>
+    function updateMixRatios(synthVal) {
+        var synth = parseInt(synthVal);
+        var seed = 100 - synth;
+        
+        document.getElementById('synth-pct-lbl').innerText = synth + '%';
+        document.getElementById('seed-pct-lbl').innerText = seed + '%';
+        document.getElementById('seed_pct_readonly').value = seed;
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+
+{% block title %}Sentinel - Predictive Sandbox{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Predictive Threat Sandbox</h1>
+    <p class="page-subtitle">Test and predict insider behavior classes (Normal, Suspicious, Threat) via manual logs or bulk CSV uploads.</p>
+</div>
+
+<div class="grid-2col">
+    <!-- Manual Log Testing Form -->
+    <div class="glass-card">
+        <div class="card-title">
+            <span><i class="fa-solid fa-sliders" style="color: var(--color-cyan);"></i> Single Employee Log Tester</span>
+        </div>
+        
+        <form id="manual-predict-form" method="POST" action="{{ url_for('predict_manual_action') }}">
+            <div class="form-group">
+                <label class="form-label" for="employee_id">Associate Employee Baseline</label>
+                <select name="employee_id" id="employee_id" class="form-control form-select">
+                    {% for emp in employees %}
+                    <option value="{{ emp.employee_id }}">{{ emp.employee_id }} - {{ emp.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label" for="login_hour">Login Hour (0-23)</label>
+                    <input type="number" step="0.5" name="login_hour" id="login_hour" class="form-control" value="9.0" min="0" max="23.9">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="logout_hour">Logout Hour (0-23)</label>
+                    <input type="number" step="0.5" name="logout_hour" id="logout_hour" class="form-control" value="17.5" min="0" max="23.9">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label" for="file_access_count">File Access Actions</label>
+                    <input type="number" name="file_access_count" id="file_access_count" class="form-control" value="30" min="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="download_mb">Data Download (MB)</label>
+                    <input type="number" step="10" name="download_mb" id="download_mb" class="form-control" value="120" min="0">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem;">
+                <div class="form-group">
+                    <label class="form-label" for="usb_usage_count">USB Count</label>
+                    <input type="number" name="usb_usage_count" id="usb_usage_count" class="form-control" value="0" min="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="email_count">Emails Sent</label>
+                    <input type="number" name="email_count" id="email_count" class="form-control" value="12" min="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="failed_login_count">Failed Logins</label>
+                    <input type="number" name="failed_login_count" id="failed_login_count" class="form-control" value="0" min="0">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="confidential_access_count">Confidential Accesses</label>
+                <input type="number" name="confidential_access_count" id="confidential_access_count" class="form-control" value="0" min="0">
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;">
+                <i class="fa-solid fa-magnifying-glass"></i> Analyze Behavior Vector
+            </button>
+        </form>
+    </div>
+
+    <!-- Batch CSV File Upload Form -->
+    <div class="glass-card" style="display: flex; flex-direction: column;">
+        <div class="card-title">
+            <span><i class="fa-solid fa-file-csv" style="color: var(--color-purple);"></i> Bulk Logs CSV Classifier</span>
+        </div>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+            Upload an employee behavioral logs CSV file. The classifier will parse features, predict risk classes, calculate deviation scores, and generate explanations.
+        </p>
+        
+        <form action="{{ url_for('predict_batch_action') }}" method="POST" enctype="multipart/form-data" style="flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
+            <div style="border: 2px dashed var(--border-color); border-radius: 8px; padding: 2.5rem 1.5rem; text-align: center; background: rgba(255,255,255,0.01); transition: var(--transition-smooth); cursor: pointer;" onmouseover="this.style.borderColor='var(--color-purple)'" onmouseout="this.style.borderColor='var(--border-color)'" onclick="document.getElementById('csv_file').click();">
+                <i class="fa-solid fa-cloud-arrow-up" style="font-size: 2.5rem; color: var(--color-purple); margin-bottom: 0.75rem;"></i>
+                <p style="font-size: 0.9rem; font-weight: 600;">Drag and drop or click to upload CSV</p>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Required columns: login_hour, logout_hour, file_access_count, usb_usage_count, email_count, download_mb, confidential_access_count, failed_login_count, unusual_hours</p>
+                <input type="file" name="csv_file" id="csv_file" style="display: none;" accept=".csv" onchange="document.getElementById('file-chosen-name').innerText = 'Selected file: ' + this.files[0].name">
+                <span id="file-chosen-name" style="display: block; font-size: 0.8rem; color: var(--color-cyan); margin-top: 0.75rem; font-family: var(--font-mono);"></span>
+            </div>
+            
+            <div style="margin-top: 1.5rem;">
+                <button type="submit" class="btn btn-secondary" style="width: 100%;">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> Classify Batch Dataset
+                </button>
+            </div>
+        </form>
+        
+        <div style="margin-top: 1.5rem; background: rgba(255,255,255,0.02); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border-color); font-size: 0.75rem; color: var(--text-muted);">
+            <p><i class="fa-solid fa-info-circle" style="color: var(--color-cyan); margin-right: 4px;"></i> <strong>Test tip:</strong> You can download the <a href="{{ url_for('download_sample_csv') }}" style="color: var(--color-cyan); text-decoration: underline;">Sample Input CSV</a> to verify the required columns, edit values, and upload it back here!</p>
+        </div>
+    </div>
+</div>
+
+<!-- Output Prediction Results Block -->
+{% if manual_result %}
+<div class="glass-card" style="margin-top: 2rem; border-color: {% if manual_result.prediction == 'Threat' %}var(--color-high){% elif manual_result.prediction == 'Suspicious' %}var(--color-medium){% else %}var(--color-low){% endif %}; animation: fade-in 0.4s ease;">
+    <div class="card-title">
+        <span><i class="fa-solid fa-magnifying-glass-chart"></i> Diagnostic Classification Result</span>
+        <span class="badge {% if manual_result.prediction == 'Threat' %}badge-high{% elif manual_result.prediction == 'Suspicious' %}badge-medium{% else %}badge-low{% endif %}">{{ manual_result.prediction }}</span>
+    </div>
+    
+    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1.5rem; align-items: center;">
+        <div style="text-align: center; border-right: 1px solid var(--border-color); padding-right: 1.5rem;">
+            <span style="font-size: 0.85rem; color: var(--text-muted);">Model Confidence</span>
+            <h2 style="font-size: 3rem; font-weight: 800; margin-top: 0.5rem; color: {% if manual_result.prediction == 'Threat' %}var(--color-high){% elif manual_result.prediction == 'Suspicious' %}var(--color-medium){% else %}var(--color-cyan){% endif %};">{{ manual_result.confidence }}%</h2>
+            <span style="font-size: 0.75rem; color: var(--text-muted);">Model: {{ manual_result.model_name|replace('_', ' ') }}</span>
+        </div>
+        <div>
+            <h4 style="margin-bottom: 0.5rem; font-size: 1rem;"><i class="fa-solid fa-brain" style="color: var(--color-purple); margin-right: 4px;"></i> Explainable AI (XAI) Justification</h4>
+            <div class="xai-block" style="margin-top: 0.25rem; border-color: {% if manual_result.prediction == 'Threat' %}var(--color-high){% elif manual_result.prediction == 'Suspicious' %}var(--color-medium){% else %}var(--color-cyan){% endif %};">
+                {{ manual_result.explanation }}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if batch_results %}
+<div class="glass-card" style="margin-top: 2rem; animation: fade-in 0.4s ease;">
+    <div class="card-title">
+        <span><i class="fa-solid fa-list"></i> Batch Classification Output (Processed {{ batch_results|length }} rows)</span>
+        <a href="{{ url_for('download_processed_csv') }}" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.75rem; background: rgba(0, 242, 254, 0.1); border-color: var(--color-cyan); color: var(--color-cyan);">
+            <i class="fa-solid fa-download"></i> Download Annotated CSV
+        </a>
+    </div>
+    
+    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Row ID</th>
+                    <th>Hours</th>
+                    <th>File Ops</th>
+                    <th>USB</th>
+                    <th>Download</th>
+                    <th>Confidential Access</th>
+                    <th>Failed Login</th>
+                    <th>Prediction</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in batch_results %}
+                <tr>
+                    <td><strong>#{{ loop.index }}</strong></td>
+                    <td>{{ r.login_hour }} - {{ r.logout_hour }}</td>
+                    <td>{{ r.file_access_count }}</td>
+                    <td>{{ r.usb_usage_count }}</td>
+                    <td>{{ r.download_mb }} MB</td>
+                    <td>{{ r.confidential_access_count }}</td>
+                    <td>{{ r.failed_login_count }}</td>
+                    <td>
+                        <span class="badge {% if r.prediction == 'Threat' %}badge-high{% elif r.prediction == 'Suspicious' %}badge-medium{% else %}badge-low{% endif %}">
+                            {{ r.prediction }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

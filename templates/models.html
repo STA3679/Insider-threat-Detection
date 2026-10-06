@@ -1,0 +1,202 @@
+{% extends 'base.html' %}
+
+{% block title %}Sentinel - Model Comparisons{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">AI/ML Model Performance & Selection</h1>
+    <p class="page-subtitle">Compare classification metrics (Accuracy, Precision, Recall, F1-Score) across algorithms trained on the hybrid dataset.</p>
+</div>
+
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    {% for msg in messages %}
+      <div class="glass-card" style="border-left: 4px solid var(--color-low); padding: 1rem; margin-bottom: 1.5rem; animation: fade-in 0.3s ease;">
+          <p><i class="fa-solid fa-square-check" style="color: var(--color-low); margin-right: 0.5rem;"></i> {{ msg }}</p>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<div class="grid-2col">
+    <!-- Active Model Selector & Details -->
+    <div class="glass-card">
+        <div class="card-title">
+            <span><i class="fa-solid fa-square-poll-vertical" style="color: var(--color-cyan);"></i> Active ML Classifier</span>
+        </div>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+            Select which machine learning engine Sentinel should use for real-time monitoring and log classification.
+        </p>
+        
+        <form action="{{ url_for('set_active_model_action') }}" method="POST">
+            <div class="form-group">
+                <label class="form-label" for="active_model">Active Model</label>
+                <select name="active_model" id="active_model" class="form-control form-select">
+                    {% for m in metrics %}
+                    <option value="{{ m.model_name }}" {% if m.model_name == active_model %}selected{% endif %}>
+                        {{ m.model_name|replace('_', ' ') }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">
+                <i class="fa-solid fa-toggle-on"></i> Activate Selected Model
+            </button>
+        </form>
+
+        <div style="margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+            <h4 style="margin-bottom: 1rem; font-size: 0.95rem; text-transform: uppercase; color: var(--text-muted);">Explainable AI Insights</h4>
+            <div style="font-size: 0.85rem; line-height: 1.5; color: var(--text-primary); display: flex; flex-direction: column; gap: 0.75rem;">
+                <div>
+                    <strong style="color: var(--color-cyan);">Supervised Models:</strong>
+                    <p style="color: var(--text-muted); margin-top: 0.25rem;">
+                        Random Forest, Decision Tree, and Logistic Regression map behaviors into three categories (Normal, Suspicious, Threat) by dividing feature space using labeled daily logs.
+                    </p>
+                </div>
+                <div>
+                    <strong style="color: var(--color-purple);">Unsupervised Model:</strong>
+                    <p style="color: var(--text-muted); margin-top: 0.25rem;">
+                        Isolation Forest isolates anomalies in data. High feature isolation distances indicate a high probability of malicious behaviors.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Metrics Comparison Chart -->
+    <div class="glass-card">
+        <div class="card-title">
+            <span><i class="fa-solid fa-chart-column" style="color: var(--color-purple);"></i> Metrics Visual Comparison</span>
+        </div>
+        <div style="height: 300px; position: relative;">
+            <canvas id="metricsChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Evaluation Metrics Details Table -->
+<div class="glass-card">
+    <div class="card-title">
+        <span><i class="fa-solid fa-table-list" style="color: var(--color-cyan);"></i> Detailed Performance Metrics</span>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Algorithm</th>
+                    <th>Accuracy</th>
+                    <th>Precision</th>
+                    <th>Recall</th>
+                    <th>F1-Score</th>
+                    <th>Trained Sample Count</th>
+                    <th>Last Updated</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in metrics %}
+                <tr {% if m.model_name == active_model %}style="background: rgba(123,47,247,0.06); border-left: 3px solid var(--color-purple);"{% endif %}>
+                    <td><strong>{{ m.model_name|replace('_', ' ') }}</strong></td>
+                    <td style="font-family: var(--font-mono);">{{ (m.accuracy * 100)|round(2) }}%</td>
+                    <td style="font-family: var(--font-mono);">{{ (m.precision * 100)|round(2) }}%</td>
+                    <td style="font-family: var(--font-mono);">{{ (m.recall * 100)|round(2) }}%</td>
+                    <td style="font-family: var(--font-mono);">{{ (m.f1_score * 100)|round(2) }}%</td>
+                    <td>{{ m.trained_on_synthetic_count + m.trained_on_seed_count }} vectors</td>
+                    <td style="font-size: 0.8rem; color: var(--text-muted);">{{ m.last_updated }}</td>
+                    <td>
+                        {% if m.model_name == active_model %}
+                        <span class="badge badge-low" style="background: rgba(0, 242, 254, 0.1); color: var(--color-cyan); border-color: var(--color-cyan);">Active</span>
+                        {% else %}
+                        <span class="badge badge-medium" style="background: rgba(255,255,255,0.03); color: var(--text-muted); border-color: var(--border-color);">Ready</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        var metricsData = {{ metrics_json|safe }};
+        
+        var labels = [];
+        var accuracies = [];
+        var precisions = [];
+        var recalls = [];
+        var f1s = [];
+        
+        metricsData.forEach(function(item) {
+            labels.push(item.model_name.replace('_', ' '));
+            accuracies.push(item.accuracy * 100);
+            precisions.push(item.precision * 100);
+            recalls.push(item.recall * 100);
+            f1s.push(item.f1_score * 100);
+        });
+        
+        var ctx = document.getElementById('metricsChart').getContext('2d');
+        var myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Accuracy',
+                        data: accuracies,
+                        backgroundColor: 'rgba(0, 242, 254, 0.5)',
+                        borderColor: 'var(--color-cyan)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Precision',
+                        data: precisions,
+                        backgroundColor: 'rgba(123, 47, 247, 0.5)',
+                        borderColor: 'var(--color-purple)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Recall',
+                        data: recalls,
+                        backgroundColor: 'rgba(41, 121, 255, 0.5)',
+                        borderColor: 'var(--color-blue)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'F1-Score',
+                        data: f1s,
+                        backgroundColor: 'rgba(0, 230, 118, 0.5)',
+                        borderColor: 'var(--color-low)',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: '#9ca3af'
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#9ca3af' },
+                        grid: { color: 'rgba(255,255,255,0.05)' }
+                    },
+                    y: {
+                        min: 0,
+                        max: 100,
+                        ticks: { color: '#9ca3af' },
+                        grid: { color: 'rgba(255,255,255,0.05)' }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Sentinel - Insider Threat Detection{% endblock %}</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Top Navbar -->
+    <nav class="navbar">
+        <div class="brand">
+            <div class="brand-icon">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+            <span>SENTINEL AI</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <span style="font-size: 0.85rem; color: var(--text-muted);">
+                <i class="fa-solid fa-circle" style="color: var(--color-low); font-size: 0.65rem; margin-right: 4px; animation: alert-pulse 2s infinite;"></i>
+                Monitoring Active
+            </span>
+            <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--color-purple); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.85rem;">
+                AD
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.path == '/' or request.path == '/dashboard' %}active{% endif %}">
+                <i class="fa-solid fa-chart-line"></i>
+                <span>Admin Dashboard</span>
+            </a>
+            <a href="{{ url_for('profiler') }}" class="nav-link {% if '/profiler' in request.path %}active{% endif %}">
+                <i class="fa-solid fa-user-gear"></i>
+                <span>Behavior Profiler</span>
+            </a>
+            <a href="{{ url_for('generator_page') }}" class="nav-link {% if '/generator' in request.path %}active{% endif %}">
+                <i class="fa-solid fa-database"></i>
+                <span>Data Synthesizer</span>
+            </a>
+            <a href="{{ url_for('models_page') }}" class="nav-link {% if '/models' in request.path %}active{% endif %}">
+                <i class="fa-solid fa-brain"></i>
+                <span>Model Comparisons</span>
+            </a>
+            <a href="{{ url_for('prediction_page') }}" class="nav-link {% if '/prediction' in request.path %}active{% endif %}">
+                <i class="fa-solid fa-file-shield"></i>
+                <span>Predictive Sandbox</span>
+            </a>
+            
+            <div style="margin-top: auto; padding: 1rem; border-top: 1px solid var(--border-color); font-size: 0.75rem; color: var(--text-muted);">
+                <p><i class="fa-solid fa-code"></i> BCA Final Project</p>
+                <p style="margin-top: 0.25rem;">Insider Threat Detection AI</p>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

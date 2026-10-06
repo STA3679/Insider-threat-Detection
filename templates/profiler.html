@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+
+{% block title %}Sentinel - Behavior Profiler{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Employee Behavior Profiler</h1>
+    <p class="page-subtitle">Establishing behavioral baselines and analyzing statistical anomalies.</p>
+</div>
+
+<div class="grid-2col" style="grid-template-columns: 1fr 2fr;">
+    <!-- Employee Selector & Baseline stats -->
+    <div class="glass-card">
+        <div class="card-title">
+            <span><i class="fa-solid fa-users" style="color: var(--color-cyan);"></i> Select Profile</span>
+        </div>
+        <form method="GET" action="{{ url_for('profiler') }}" id="profile-select-form">
+            <div class="form-group">
+                <label class="form-label" for="employee_id">Select Employee</label>
+                <select name="employee_id" id="employee_id" class="form-control form-select" onchange="document.getElementById('profile-select-form').submit();">
+                    {% for emp in employees %}
+                    <option value="{{ emp.employee_id }}" {% if emp.employee_id == selected_employee.employee_id %}selected{% endif %}>
+                        {{ emp.employee_id }} - {{ emp.name }} ({{ emp.department }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+        
+        <div style="margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+            <h4 style="margin-bottom: 1rem; font-size: 0.95rem; text-transform: uppercase; color: var(--text-muted);">Baseline Profile</h4>
+            
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
+                    <span class="text-muted">Role:</span>
+                    <strong>{{ selected_employee.role }}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
+                    <span class="text-muted">Typical Hours:</span>
+                    <strong>{{ selected_employee.baseline_login_start }} AM - {{ selected_employee.baseline_login_end }} PM</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
+                    <span class="text-muted">Avg Downloads:</span>
+                    <strong>{{ selected_employee.baseline_download_mb }} MB / Day</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
+                    <span class="text-muted">Avg File Accesses:</span>
+                    <strong>{{ selected_employee.baseline_file_access }} actions / Day</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
+                    <span class="text-muted">Aggregated Score:</span>
+                    <strong style="color: {% if selected_employee.risk_level == 'High' %}var(--color-high){% elif selected_employee.risk_level == 'Medium' %}var(--color-medium){% else %}var(--color-low){% endif %};">
+                        {{ selected_employee.threat_score }} ({{ selected_employee.risk_level }} Risk)
+                    </strong>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top: 2rem;">
+            <form action="{{ url_for('recalculate_baselines') }}" method="POST">
+                <button type="submit" class="btn btn-secondary" style="width: 100%;">
+                    <i class="fa-solid fa-sync"></i> Recalculate All Baselines
+                </button>
+            </form>
+            <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; text-align: center;">
+                Recalculate average parameters based on logged 'Normal' historical days.
+            </p>
+        </div>
+    </div>
+
+    <!-- Behavior Log History & Anomalies -->
+    <div class="glass-card">
+        <div class="card-title">
+            <span><i class="fa-solid fa-list-check" style="color: var(--color-purple);"></i> Historical Log Analysis & Deviation Scores</span>
+        </div>
+        
+        {% if logs %}
+        <div class="table-responsive">
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Hours</th>
+                        <th>File Ops</th>
+                        <th>USB</th>
+                        <th>Download</th>
+                        <th>Failed Login</th>
+                        <th>Anomaly Score</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td><strong>{{ log.date }}</strong></td>
+                        <td>{{ log.login_hour }} - {{ log.logout_hour }}</td>
+                        <td>{{ log.file_access_count }}</td>
+                        <td>{{ log.usb_usage_count }}</td>
+                        <td>{{ log.download_mb }} MB</td>
+                        <td>{{ log.failed_login_count }}</td>
+                        <td>
+                            <span style="font-family: var(--font-mono); font-weight: bold; color: {% if log.dev_score >= 70 %}var(--color-high){% elif log.dev_score >= 30 %}var(--color-medium){% else %}var(--color-low){% endif %};">
+                                {{ log.dev_score }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if log.anomalies %}
+                            <button class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="showAlertModal('{{ log.date }}', '{{ log.explanation|replace("'", "\\'") }}')">
+                                View Anomalies
+                            </button>
+                            {% else %}
+                            <span style="font-size: 0.8rem; color: var(--text-muted);">Within Baseline</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 3rem; color: var(--text-muted);">
+            <i class="fa-solid fa-clipboard-question" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+            <p>No activity logs found for this employee. Use the Data Synthesizer to generate records.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal for Anomaly Explanations -->
+<div id="anomaly-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="glass-card" style="width: 500px; max-width: 90% ; border: 1px solid var(--border-hover);">
+        <div class="card-title">
+            <span id="modal-date">Date Anomaly Report</span>
+            <button onclick="closeModal()" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.25rem;"><i class="fa-solid fa-times"></i></button>
+        </div>
+        <div class="xai-block" id="modal-content">
+            Anomaly explanation content...
+        </div>
+        <div style="margin-top: 1.5rem; text-align: right;">
+            <button onclick="closeModal()" class="btn btn-secondary" style="padding: 0.5rem 1rem;">Close Report</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function showAlertModal(date, explanation) {
+        document.getElementById('modal-date').innerText = 'Deviation Analysis for: ' + date;
+        document.getElementById('modal-content').innerText = explanation;
+        document.getElementById('anomaly-modal').style.display = 'flex';
+    }
+    
+    function closeModal() {
+        document.getElementById('anomaly-modal').style.display = 'none';
+    }
+</script>
+{% endblock %}
